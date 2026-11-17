@@ -1,6 +1,17 @@
 # PostgreSQL-on-Windows
 
-Run everything in **PowerShell as Administrator**. Replace `18` with a newer version if one shows up in step 1.
+Run everything in **PowerShell as Administrator**.
+
+**0. Remove the current install first (you already have one)**
+
+The installer won't change the password on a data folder that already exists, so start clean:
+
+```powershell
+winget uninstall --id PostgreSQL.PostgreSQL.18 --exact
+Remove-Item "C:\Program Files\PostgreSQL\18" -Recurse -Force
+```
+
+This deletes any databases in that install. Skip this step if you'd rather keep them and fix the password with the `pg_hba.conf` reset from my last message.
 
 **1. Find the package**
 
@@ -18,10 +29,10 @@ winget search --id PostgreSQL.PostgreSQL.18 --exact
 **2. Install**
 
 ```powershell
-winget install --id PostgreSQL.PostgreSQL.18 --exact --override "--mode unattended --unattendedmodeui minimal --superpassword YourStrongPass --serverport 5432"
+winget install --id PostgreSQL.PostgreSQL.18 --exact --override '--mode unattended --unattendedmodeui minimal --superpassword YourStrongPass --serverport 5432'
 ```
 
-This installs the server, pgAdmin 4 and the command-line tools, sets your `postgres` password and registers the Windows service.
+Single quotes make PowerShell pass the string exactly as written, so `$`, `` ` `` and `"` in the password survive. The password just can't contain a single quote (`'`).
 
 **3. Add the tools to PATH**
 
@@ -29,7 +40,7 @@ This installs the server, pgAdmin 4 and the command-line tools, sets your `postg
 [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "Machine") + ";C:\Program Files\PostgreSQL\18\bin", "Machine")
 ```
 
-Close PowerShell and open a new window.
+If PATH already has this folder from the earlier install, skip this step. Close PowerShell and open a new window.
 
 **4. Check the service**
 
@@ -60,8 +71,6 @@ psql -U postgres -h localhost -c "CREATE ROLE lacan WITH LOGIN PASSWORD 'Another
 psql -U postgres -h localhost -c "CREATE DATABASE labdb OWNER lacan;"
 psql -U lacan -h localhost -d labdb
 ```
-
-This way you don't use the superuser for everyday work.
 
 **7. Managing the service later**
 
@@ -94,14 +103,14 @@ winget upgrade --id PostgreSQL.PostgreSQL.18 --exact
 winget uninstall --id PostgreSQL.PostgreSQL.18 --exact
 ```
 
-`upgrade` only applies minor updates (18.x → 18.y). Moving to a new major version (18 → 19) means installing the new package and migrating your data with `pg_upgrade` or with `pg_dump`/`pg_restore`. Uninstalling leaves the `data` folder in place, so delete it by hand if you want a clean removal.
+`upgrade` only applies minor updates (18.x → 18.y). Moving to a new major version means installing the new package and migrating your data with `pg_upgrade` or with `pg_dump`/`pg_restore`. Uninstalling leaves the `data` folder in place, so delete it by hand if you want a clean removal.
 
 **Troubleshooting**
 
 | Problem | Fix |
 |---|---|
+| `password authentication failed` | The `data` folder from an earlier install was reused. Do step 0, or reset the password using `trust` in `pg_hba.conf` and then `\password postgres`. |
 | `psql` not recognized | PATH wasn't picked up. Open a new terminal, or check that the `bin` folder exists. |
 | Install hangs or fails | Run it again with `--verbose-logs` added, or remove `--override` to get the normal wizard. |
 | Port 5432 already in use | Run `netstat -ano \| findstr 5432` to find what's using it, or install with `--serverport 5433`. |
 | Strange characters in the psql console | Run `chcp 1252` first, or use Windows Terminal. |
-| Forgot the `postgres` password | In `pg_hba.conf`, temporarily set the localhost lines to `trust`, restart, run `ALTER USER postgres PASSWORD '...';`, then change them back to `scram-sha-256` and restart. |
