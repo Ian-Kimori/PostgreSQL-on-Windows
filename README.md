@@ -37,7 +37,7 @@ Look at the **Installer Url** line. It should point to an `enterprisedb.com` dow
 **3. Install**
 
 ```powershell
-winget install --id PostgreSQL.PostgreSQL.18 --exact --override '--mode unattended --unattendedmodeui minimal --superpassword YourStrongPass --serverport 5432'
+winget install --id PostgreSQL.PostgreSQL.18 --exact --override '--mode unattended --unattendedmodeui minimal --superpassword <YourStrongPass> --serverport 5432'
 ```
 
 Single quotes make PowerShell pass the string exactly as written, so `$`, `` ` `` and `"` in the password survive. The password just can't contain a single quote (`'`).
