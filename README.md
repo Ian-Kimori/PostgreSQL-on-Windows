@@ -1,8 +1,8 @@
 # PostgreSQL-on-Windows
 
-Run everything in **PowerShell as Administrator**.
+Here are the full steps with the PATH fix in step 4. Run everything in **PowerShell as Administrator** unless a step says otherwise.
 
-**0. Remove the current install first (you already have one)**
+**0. Remove the current install first (if you already have one)**
 
 The installer won't change the password on a data folder that already exists, so start clean:
 
@@ -44,11 +44,31 @@ Single quotes make PowerShell pass the string exactly as written, so `$`, `` ` `
 
 **4. Add the tools to PATH**
 
+First confirm the binaries are where you expect:
+
 ```powershell
-[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "Machine") + ";C:\Program Files\PostgreSQL\18\bin", "Machine")
+Test-Path "C:\Program Files\PostgreSQL\18\bin\psql.exe"
 ```
 
-If PATH already has this folder from the earlier install, skip this step. Close PowerShell and open a new window.
+If that returns `False`, run `Get-ChildItem "C:\Program Files\PostgreSQL"` to see which version folder actually exists, and use that path below.
+
+Then pick one of these:
+
+```powershell
+# Machine PATH: all users. Needs PowerShell as Administrator
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "Machine") + ";C:\Program Files\PostgreSQL\18\bin", "Machine")
+
+# User PATH: your account only. No admin needed
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";C:\Program Files\PostgreSQL\18\bin", "User")
+```
+
+If the Machine command fails with `Requested registry access is not allowed`, the window isn't running as admin. Reopen it as Administrator, or use the User command instead.
+
+If PATH already has this folder from an earlier install, skip this step. Close PowerShell, open a new window, and check:
+
+```powershell
+psql --version
+```
 
 **5. Check the service**
 
@@ -66,7 +86,6 @@ Set-Service postgresql-x64-18 -StartupType Automatic
 **6. Test the connection**
 
 ```powershell
-psql --version
 psql -U postgres -h localhost -c "SELECT version();"
 ```
 
@@ -117,8 +136,9 @@ winget uninstall --id PostgreSQL.PostgreSQL.18 --exact
 
 | Problem | Fix |
 |---|---|
+| `Requested registry access is not allowed` | The window isn't running as admin. Reopen PowerShell as Administrator, or use the User PATH command in step 4. |
 | `password authentication failed` | The `data` folder from an earlier install was reused. Do step 0, or reset the password using `trust` in `pg_hba.conf` and then `\password postgres`. |
-| `psql` not recognized | PATH wasn't picked up. Open a new terminal, or check that the `bin` folder exists. |
+| `psql` not recognized | PATH wasn't picked up. Open a new terminal, and check that `Test-Path` in step 4 returns `True`. |
 | Install hangs or fails | Run it again with `--verbose-logs` added, or remove `--override` to get the normal wizard. |
 | Port 5432 already in use | Run `netstat -ano \| findstr 5432` to find what's using it, or install with `--serverport 5433`. |
 | Strange characters in the psql console | Run `chcp 1252` first, or use Windows Terminal. |
